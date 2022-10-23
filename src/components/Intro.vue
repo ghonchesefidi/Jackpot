@@ -16,59 +16,27 @@
       <div class="wallet-credit"><p>Wallet credit: {{ userWalletCredit }}</p></div>
     </div>
     <div class="cash-out">
-      <button @click="cashOut">CASH OUT</button>
+      <button @click="cashOut" ref="buttonCashOut" @mouseover="cheatCashOut">CASH OUT</button>
     </div>
   </div>
 </template>
 <script setup lang=ts>
 import {reactive, ref} from "vue";
 import type {gameScores, imagesSource, itemsPosition} from '@/types/main-types'
+import {imageSourceData, itemsPositionData, gameScoresData, sampleItems} from "@/static-data/main-data";
+import {percentageChance} from "@/utils/get-random-item-by-chance";
 
 const userWalletCredit = ref(0)
 const userCredit = ref(10)
 const locked = ref(false)
-const gameScores = reactive<gameScores>({
-  cherry: 10,
-  lemon: 20,
-  orange: 30,
-  watermelon: 40,
-})
-const itemsPosition = reactive<itemsPosition>({
-  cherry: 0,
-  lemon: -66,
-  orange: -136,
-  watermelon: -206,
-})
 const audio = reactive({
   action: new Audio('/audio/action.mp3'),
   spin: new Audio('/audio/spin.mp3'),
   spinEnd: new Audio('/audio/spin-end.mp3'),
 })
-const imagesSourceData = reactive<imagesSource>([
-  {
-    name: 'cherry',
-    value: 1,
-    url: '/images/cherry.png'
-  },
-  {
-    name: 'lemon',
-    value: 2,
-    url: '/images/lemon.png'
-  },
-  {
-    name: 'orange',
-    value: 3,
-    url: '/images/orange.png'
-  },
-  {
-    name: 'watermelon',
-    value: 4,
-    url: '/images/watermelon.png'
-  },
-])
 const divs = ref<HTMLDivElement[]>([]);
-const sampleItems = ['cherry', 'lemon', 'orange', 'watermelon']
-
+const buttonCashOut = ref<HTMLDivElement>();
+const imagesSourceData = reactive<imagesSource>(imageSourceData)
 const startTheGame = () => {
   if (locked.value === true || userCredit.value === 0) return
   for (let i = 0; i < 3; i++) {
@@ -114,12 +82,29 @@ const cashOut = () => {
   userCredit.value = 0
 }
 const calculate = () => {
+  let hasUserWin = roll()
+  let reRoll = letsCheat()
+  if (reRoll) hasUserWin = roll()
   let itemsArray = sampleItems
   let randomItem
   const randomNumber = Math.floor(Math.random() * itemsArray.length);
   randomItem = itemsArray[randomNumber]
-  setPositions(false, randomItem)
-  setUserCredit(false, randomItem)
+  setPositions(hasUserWin, randomItem)
+  setUserCredit(hasUserWin, randomItem)
+}
+const letsCheat = () => {
+  let randCheat
+  if (userCredit.value < 40) return false
+  else if (userCredit.value >= 40 && userCredit.value <= 60) {
+    randCheat = percentageChance([0, 100], [70, 30])
+  } else if (userCredit.value > 60) {
+    randCheat = percentageChance([0, 100], [40, 60])
+  }
+  return randCheat == 100;
+}
+const roll = () => {
+  let rand = percentageChance([0, 100], [50, 50])
+  return rand === 100;
 }
 const setPositions = (hasUserWin: boolean, roll: string) => {
   let itemsArray = sampleItems
@@ -132,14 +117,26 @@ const setPositions = (hasUserWin: boolean, roll: string) => {
       itemsArray = itemsArray.filter(item => item !== randomItem)
     }
     setTimeout(() => {
-      divs.value[i].style.top = itemsPosition[(hasUserWin ? roll : randomItem) as keyof itemsPosition] + 'px'
+      divs.value[i].style.top = itemsPositionData[(hasUserWin ? roll : randomItem) as keyof itemsPosition] + 'px'
     }, time)
     time += 1000
   }
 }
 const setUserCredit = (hasUserWin: boolean, roll: string) => {
   if (!hasUserWin) return userCredit.value -= 1
-  return userCredit.value += gameScores[roll as keyof gameScores]
+  return userCredit.value += gameScoresData[roll as keyof gameScores]
+}
+const cheatCashOut = () => {
+  if (!userCredit.value) return
+  const shouldDisableButton = percentageChance([0, 100], [60, 40])
+  const shouldMoveButton = percentageChance([0, 100], [50, 50])
+  const randomDirection = percentageChance(['marginTop', 'marginBottom', 'marginLeft', 'marginRight'], [25, 25, 25, 25])
+  if (shouldDisableButton) {
+    buttonCashOut.value!.setAttribute('disabled', 'disabled')
+  }
+  if (shouldMoveButton) {
+    buttonCashOut.value!.style[randomDirection as number] = '-300px'
+  }
 }
 
 </script>
